@@ -1,0 +1,28 @@
+{
+  "name": "typescript-redux",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "tslint": "^4.5.0",
+    "tslint-react": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/redux-actions": "^1.2.3",
+    "redux": "^3.6.0",
+    "redux-actions": "^1.2.2",
+    "source-map-loader": "^0.1.6",
+    "ts-loader": "^2.0.1",
+    "typescript": "^2.2.1",
+    "webpack": "^2.2.1",
+    "webpack-dev-server": "^2.4.1"
+  },
+  "scripts": {
+    "build": "webpack ./webpack.config.js",
+    "start": "webpack-dev-server ./webpack.config.js --no-info --hot --inline --content-base ./public",
+    "lint": "tslint src/**/*.tsx",
+    "fmt": "tsfmt -r"
+  },
+  "author": "Scott Becker <becker.scott@gmail.com> (http://www.olioapps.com/)",
+  "license": "MIT"
+}
