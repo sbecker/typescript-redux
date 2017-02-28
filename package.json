@@ -9,10 +9,14 @@
   },
   "devDependencies": {
     "@types/redux-actions": "^1.2.3",
+    "@types/redux-immutable": "^3.0.33",
+    "immutable": "^3.8.1",
     "redux": "^3.6.0",
     "redux-actions": "^1.2.2",
+    "redux-immutable": "^3.1.0",
     "source-map-loader": "^0.1.6",
     "ts-loader": "^2.0.1",
+    "typed-immutable-record": "^0.0.6",
     "typescript": "^2.2.1",
     "webpack": "^2.2.1",
     "webpack-dev-server": "^2.4.1"

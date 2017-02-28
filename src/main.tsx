@@ -1,5 +1,8 @@
-import { combineReducers, createStore, Store } from "redux";
+import { List } from "immutable";
+import { createStore, Store } from "redux";
 import { Action, createAction, handleActions } from "redux-actions";
+import { combineReducers } from "redux-immutable";
+import { makeTypedFactory, recordify, TypedRecord } from "typed-immutable-record";
 
 // entities
 interface ITodo {
@@ -8,16 +11,32 @@ interface ITodo {
     completed: boolean;
 }
 
-type Todos = ITodo[];
+interface ITodoRecord extends TypedRecord<ITodoRecord>, ITodo { };
+
+const defaultTodo = {
+    completed: false,
+    id: undefined,
+    text: "",
+};
+
+const TodoFactory = makeTypedFactory<ITodo, ITodoRecord>(defaultTodo);
+
+type TodosList = List<ITodoRecord>;
+
+interface IAppState {
+    todos: TodosList;
+}
+
+interface IAppStateRecord extends TypedRecord<IAppStateRecord>, IAppState { };
 
 // action types
 
 const ADD_TODO        = "ADD_TODO";
 const DELETE_TODO     = "DELETE_TODO";
-const EDIT_TODO       = "EDIT_TODO";
-const COMPLETE_TODO   = "COMPLETE_TODO";
-const COMPLETE_ALL    = "COMPLETE_ALL";
-const CLEAR_COMPLETED = "CLEAR_COMPLETED";
+// const EDIT_TODO       = "EDIT_TODO";
+// const COMPLETE_TODO   = "COMPLETE_TODO";
+// const COMPLETE_ALL    = "COMPLETE_ALL";
+// const CLEAR_COMPLETED = "CLEAR_COMPLETED";
 
 // actions
 
@@ -33,61 +52,60 @@ const deleteTodo = createAction<ITodo, ITodo>(
 
 // initial state
 
-const initialState: Todos = [{
+const initialState: TodosList = List([TodoFactory({
     completed: false,
     id: 1,
     text: "Use Redux with Typescript",
-}];
+})]);
 
 // reducer
 
-const todosReducer = handleActions<Todos, ITodo>({
+const todosReducer = handleActions<TodosList, ITodo>({
 
-  [DELETE_TODO]: (state: Todos, action: Action<ITodo>): Todos => {
+  [DELETE_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
     if (action.payload === undefined) { return state; }
-    const item = action.payload;
-    return state.filter( (todo) => todo.id !== item.id );
+    const todo = action.payload;
+    const index = state.findIndex((item) => !!item && item.get("id") === todo.id);
+    if (index === -1) { return state; }
+    return state.delete(index);
   },
 
-  [ADD_TODO]: (state: Todos, action: Action<ITodo>): Todos => {
+  [ADD_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
     if (action.payload === undefined) { return state; }
-    return [...state, {
-      completed: action.payload.completed,
-      id: state.reduce((maxId, todo) => Math.max(todo.id || 0, maxId), -1) + 1,
-      text: action.payload.text,
-    }];
+    const todoRecord = recordify<ITodo, ITodoRecord>(action.payload);
+    return state.push(todoRecord);
   },
 
-  [EDIT_TODO]: (state: Todos, action: Action<ITodo>): Todos => {
-    if (action.payload === undefined) { return state; }
-    const item = action.payload;
-    return state.map((todo) =>
-      todo.id === item.id
-        ? Object.assign({}, todo, { text: item.text })
-        : todo,
-    );
-  },
+//   [EDIT_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
+//     if (action.payload === undefined) { return state; }
+//     const item = action.payload;
+//     return state.map((todo) =>
+//       todo.id === item.id
+//         ? Object.assign({}, todo, { text: item.text })
+//         : todo,
+//     );
+//   },
 
-  [COMPLETE_TODO]: (state: Todos, action: Action<ITodo>): Todos => {
-    if (action.payload === undefined) { return state; }
-    const item = action.payload;
-    return state.map((todo) =>
-      todo.id === item.id ?
-        Object.assign({}, todo, { completed: !todo.completed }) :
-        todo,
-    );
-  },
+//   [COMPLETE_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
+//     if (action.payload === undefined) { return state; }
+//     const item = action.payload;
+//     return state.map((todo) =>
+//       todo.id === item.id ?
+//         Object.assign({}, todo, { completed: !todo.completed }) :
+//         todo,
+//     );
+//   },
 
-  [COMPLETE_ALL]: (state: Todos): Todos => {
-    const areAllMarked = state.every((todo) => todo.completed);
-    return state.map((todo) => Object.assign({}, todo, {
-      completed: !areAllMarked,
-    }));
-  },
+//   [COMPLETE_ALL]: (state: TodosList): TodosList => {
+//     const areAllMarked = state.every((todo) => todo.completed);
+//     return state.map((todo) => Object.assign({}, todo, {
+//       completed: !areAllMarked,
+//     }));
+//   },
 
-  [CLEAR_COMPLETED]: (state: Todos): Todos => {
-    return state.filter((todo) => todo.completed === false);
-  },
+//   [CLEAR_COMPLETED]: (state: TodosList): TodosList => {
+//     return state.filter((todo) => todo.completed === false);
+//   },
 
 }, initialState);
 
@@ -97,18 +115,33 @@ const rootReducer = combineReducers({
 
 // store
 
-const rootInitialState = {};
+const rootInitialState = recordify<IAppState, IAppStateRecord>({
+    todos: List([]),
+});
 
 const store: Store<any> = createStore(rootReducer, rootInitialState);
 
-console.log(store.getState());
-console.log(store.dispatch(addTodo("Another todo")));
-console.log(store.getState());
+// initial state
+console.log(store.getState().toJS());
 
-const currentTodos: Todos = store.getState().todos;
-const todoToDelete = currentTodos[1];
+// add one todo
+console.log(store.dispatch(addTodo("First todo")));
+console.log(store.getState().toJS());
 
+// add 2nd todo
+console.log(store.dispatch(addTodo("Second todo")));
+console.log(store.getState().toJS());
+
+// inspect todos
+const currentTodos: TodosList = store.getState().get("todos");
+console.log('currentTodos: ', currentTodos.toJS());
+
+// get a todo to be deleted
+const todoToDelete = currentTodos.get(0);
+console.log('todoToDelete: ', todoToDelete.toJS());
+
+// delete the todo
 console.log(store.dispatch(deleteTodo(todoToDelete)));
-console.log(store.getState());
+console.log(store.getState().toJS());
 
 
