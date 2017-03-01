@@ -197,3 +197,50 @@ console.log(store.getState().toJS());
 // clear completed todos
 console.log(store.dispatch(clearCompleted()));
 console.log(store.getState().toJS());
+
+// ----------------- monolite -----------------
+// https://github.com/kube/monolite
+
+import { set, setMap } from "monolite";
+
+const summerTree = {
+    leftBranch: {
+        firstLeaf: "green",
+        lastLeaf: "green",
+    },
+    rightBranch: {
+        firstLeaf: "green",
+        lastLeaf: "green",
+    },
+};
+
+const winterTree = set(summerTree, _ => _.leftBranch.lastLeaf)("brown");
+const autumnTree = set(summerTree, _ => _.rightBranch.firstLeaf)("yellow");
+
+console.log("summerTree: ", summerTree);
+console.log("autumnTree: ", autumnTree);
+console.log("winterTree: ", winterTree);
+
+const todo1: ITodo = {completed: false, id: 1, text: "Hi"};
+const todo1Completed = set(todo1, _ => _.completed)(true);
+
+console.log("todo1: ", todo1);
+console.log("todo1Completed: ", todo1Completed);
+
+// dealing with arrays...
+
+const todoList: ITodo[] = [todo1, {completed: true, id: 2, text: "Hi"}];
+const todosAllCompleted: ITodo[] = setMap(todoList, _ => _)((todo) => set(todo, _ => _.completed)(true));
+const todosUncompleted: ITodo[] = set(todoList, _ => _)(todoList.filter((todo) => !todo.completed));
+
+console.log("todoList: ", todoList);
+console.log("todosAllCompleted: ", todosAllCompleted);
+console.log("todosUncompleted: ", todosUncompleted);
+
+
+// pluses:
+// - plain JS objects in, plain JS objects out
+// - set() returns a type-safe setter, via currying
+// minuses
+// - syntax is a little weird, with underscores, and a function that returns a function to immediately be called
+// - only a few functions... no filter, for instance... maybe thats fine - yep, you can use
