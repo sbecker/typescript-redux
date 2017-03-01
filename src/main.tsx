@@ -33,10 +33,10 @@ interface IAppStateRecord extends TypedRecord<IAppStateRecord>, IAppState { };
 
 const ADD_TODO        = "ADD_TODO";
 const DELETE_TODO     = "DELETE_TODO";
-// const EDIT_TODO       = "EDIT_TODO";
-// const COMPLETE_TODO   = "COMPLETE_TODO";
-// const COMPLETE_ALL    = "COMPLETE_ALL";
-// const CLEAR_COMPLETED = "CLEAR_COMPLETED";
+const UPDATE_TODO     = "UPDATE_TODO";
+const COMPLETE_TODO   = "COMPLETE_TODO";
+const COMPLETE_ALL    = "COMPLETE_ALL";
+const CLEAR_COMPLETED = "CLEAR_COMPLETED";
 
 // actions
 
@@ -50,6 +50,24 @@ const deleteTodo = createAction<ITodo, ITodo>(
     (todo: ITodo) => todo,
 );
 
+const updateTodo = createAction<ITodo, ITodo>(
+    UPDATE_TODO,
+    (todo: ITodo) => todo,
+);
+
+const completeTodo = createAction<ITodo, ITodo>(
+    COMPLETE_TODO,
+    (todo: ITodo) => todo,
+);
+
+const completeAll = createAction(
+    COMPLETE_ALL,
+);
+
+const clearCompleted = createAction(
+    CLEAR_COMPLETED,
+);
+
 // initial state
 
 const initialState: TodosList = List([TodoFactory({
@@ -60,54 +78,66 @@ const initialState: TodosList = List([TodoFactory({
 
 // reducer
 
+function getNextTodoId(state: TodosList): number {
+    const todoRecord = state.last();
+    const lastId = (todoRecord ? todoRecord.get("id") : 0) as number;
+    return lastId + 1;
+}
+
 const todosReducer = handleActions<TodosList, ITodo>({
 
-  [DELETE_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
-    if (action.payload === undefined) { return state; }
-    const todo = action.payload;
-    const index = state.findIndex((item) => !!item && item.get("id") === todo.id);
-    if (index === -1) { return state; }
-    return state.delete(index);
-  },
+    [DELETE_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
+        if (action.payload === undefined) { return state; }
+        const todo = action.payload;
+        const index = state.findIndex((item) => !!item && item.get("id") === todo.id);
+        if (index === -1) { return state; }
+        return state.delete(index);
+    },
 
-  [ADD_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
-    if (action.payload === undefined) { return state; }
-    const todoRecord = recordify<ITodo, ITodoRecord>(action.payload);
-    return state.push(todoRecord);
-  },
+    [ADD_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
+        if (action.payload === undefined) { return state; }
+        const nextId = getNextTodoId(state);
+        const todo = Object.assign({}, action.payload, {id: nextId});
+        const todoRecord = recordify<ITodo, ITodoRecord>(todo);
+        return state.push(todoRecord);
+    },
 
-//   [EDIT_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
-//     if (action.payload === undefined) { return state; }
-//     const item = action.payload;
-//     return state.map((todo) =>
-//       todo.id === item.id
-//         ? Object.assign({}, todo, { text: item.text })
-//         : todo,
-//     );
-//   },
+    [UPDATE_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
+        if (action.payload === undefined) { return state; }
+        const todo = action.payload;
+        const todoRecord = recordify<ITodo, ITodoRecord>(todo);
+        const index = state.findIndex((item) => !!item && item.get("id") === todo.id);
+        return state.update(index, () => todoRecord);
+    },
 
-//   [COMPLETE_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
-//     if (action.payload === undefined) { return state; }
-//     const item = action.payload;
-//     return state.map((todo) =>
-//       todo.id === item.id ?
-//         Object.assign({}, todo, { completed: !todo.completed }) :
-//         todo,
-//     );
-//   },
+    [COMPLETE_TODO]: (state: TodosList, action: Action<ITodo>): TodosList => {
+        if (action.payload === undefined) { return state; }
+        const todo = action.payload;
+        const index = state.findIndex((item) => !!item && item.get("id") === todo.id);
+        return state.update(index, (todoRecord) => todoRecord.set("completed", true));
+    },
 
-//   [COMPLETE_ALL]: (state: TodosList): TodosList => {
-//     const areAllMarked = state.every((todo) => todo.completed);
-//     return state.map((todo) => Object.assign({}, todo, {
-//       completed: !areAllMarked,
-//     }));
-//   },
+    [COMPLETE_ALL]: (state: TodosList): TodosList => {
+        // Couldn't figure out how to get Immutable.List .map()... working with typescript
+        // I think there's a bug in the typedefs... for now, shotgun approach...
+        const todos: ITodo[] = state.toJS();
+        return List<ITodoRecord>(todos.map((todo) => {
+            const completedTodo = Object.assign({}, todo, {completed: true});
+            return recordify<ITodo, ITodoRecord>(completedTodo);
+        }));
+    },
 
-//   [CLEAR_COMPLETED]: (state: TodosList): TodosList => {
-//     return state.filter((todo) => todo.completed === false);
-//   },
+    [CLEAR_COMPLETED]: (state: TodosList): TodosList => {
+        // Couldn't figure out how to get Immutable.List .filter()... working with typescript
+        // I think there's a bug in the typedefs... for now, shotgun approach...
+        const todos: ITodo[] = state.toJS().filter((todo: ITodo) => !todo.completed);
+        return List<ITodoRecord>(todos.map((todo) => {
+            return recordify<ITodo, ITodoRecord>(todo);
+        }));
+    },
 
 }, initialState);
+
 
 const rootReducer = combineReducers({
   todos: todosReducer,
@@ -134,14 +164,36 @@ console.log(store.getState().toJS());
 
 // inspect todos
 const currentTodos: TodosList = store.getState().get("todos");
-console.log('currentTodos: ', currentTodos.toJS());
+console.log("currentTodos: ", currentTodos.toJS());
+
+// get a todo to edit
+const todoToEdit = currentTodos.get(1);
+console.log("todoToEdit: ", todoToEdit.toJS());
+
+// edit todo
+const todoEdited = todoToEdit.update("text", () => "Changed title");
+console.log("todoEdited: ", todoEdited.toJS());
+
+// update state with edited todo
+console.log(store.dispatch(updateTodo(todoEdited.toJS())));
+console.log(store.getState().toJS());
+
+// update state with completed todo
+console.log(store.dispatch(completeTodo(todoEdited.toJS())));
+console.log(store.getState().toJS());
+
+// update state with completed todo
+console.log(store.dispatch(completeAll()));
+console.log(store.getState().toJS());
 
 // get a todo to be deleted
-const todoToDelete = currentTodos.get(0);
-console.log('todoToDelete: ', todoToDelete.toJS());
+const todoToDelete = store.getState().get("todos").get(0);
+console.log("todoToDelete: ", todoToDelete);
 
 // delete the todo
 console.log(store.dispatch(deleteTodo(todoToDelete)));
 console.log(store.getState().toJS());
 
-
+// clear completed todos
+console.log(store.dispatch(clearCompleted()));
+console.log(store.getState().toJS());
